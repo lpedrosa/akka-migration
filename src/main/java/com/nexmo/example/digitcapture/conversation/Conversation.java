@@ -1,5 +1,7 @@
 package com.nexmo.example.digitcapture.conversation;
 
+import akka.actor.ActorRef;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
@@ -9,6 +11,7 @@ import com.nexmo.example.digitcapture.conversation.message.ConversationMessages;
 import com.nexmo.example.digitcapture.conversation.message.Event;
 import com.nexmo.example.digitcapture.conversation.message.EventsHandled;
 import com.nexmo.example.digitcapture.conversation.message.SetupConversation;
+import com.nexmo.example.digitcapture.migrate.MigrationMessage;
 
 public class Conversation extends UntypedActor {
 
@@ -31,6 +34,8 @@ public class Conversation extends UntypedActor {
             handleEvent((Event) message);
         } else if (message == ConversationMessages.GetEventsHandled) {
             replyWithEventsHandled();
+        } else if (message == MigrationMessage.Migrate) {
+            handleMigration();
         } else {
             unhandled(message);
         }
@@ -46,5 +51,11 @@ public class Conversation extends UntypedActor {
         }
         log.info("Handling event: {}", event);
         this.eventsHandled++;
+    }
+
+    private void handleMigration() {
+        // TODO(lpedrosa): store state into a file
+        // sending normal PoisonPill for now
+        getSelf().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 }

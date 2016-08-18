@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.sharding.ClusterSharding;
 import akka.cluster.sharding.ClusterShardingSettings;
+import akka.cluster.sharding.ShardCoordinator.LeastShardAllocationStrategy;
 
 import java.net.URI;
 
@@ -22,6 +23,7 @@ import com.nexmo.example.digitcapture.api.HelloWorld;
 import com.nexmo.example.digitcapture.api.ShutdownResource;
 import com.nexmo.example.digitcapture.conversation.Conversation;
 import com.nexmo.example.digitcapture.conversation.ConversationMessageExtractor;
+import com.nexmo.example.digitcapture.migrate.MigrationMessage;
 import com.nexmo.example.digitcapture.shutdown.GracefulShutdownInitiator;
 
 public class ExampleServer {
@@ -35,11 +37,17 @@ public class ExampleServer {
 
         final ClusterShardingSettings settings = ClusterShardingSettings.create(system);
 
+        final LeastShardAllocationStrategy strategy = new LeastShardAllocationStrategy(
+                settings.tuningParameters().leastShardAllocationRebalanceThreshold(),
+                settings.tuningParameters().leastShardAllocationMaxSimultaneousRebalance());
+
         final ActorRef clusterSharder = ClusterSharding.get(system)
                                                            .start("digit",
                                                                    Conversation.props(),
                                                                    settings,
-                                                                   new ConversationMessageExtractor());
+                                                                   new ConversationMessageExtractor(),
+                                                                   strategy,
+                                                                   MigrationMessage.Migrate);
 
         final ActorRef shutdownActor = system.actorOf(GracefulShutdownInitiator.props(clusterSharder, 10000), "shutdownActor");
 
