@@ -1,11 +1,16 @@
 package com.nexmo.example.digitcapture.conversation;
 
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
 
 import com.nexmo.example.digitcapture.conversation.message.ConversationMessages;
 import com.nexmo.example.digitcapture.conversation.message.Event;
@@ -26,10 +31,24 @@ public class Conversation extends UntypedActor {
     private String conversationId;
 
     @Override
+    public void preStart() throws Exception {
+        this.conversationId = getSelf().path().name();
+
+        // reload state
+        Path path = Paths.get("./conversation-mem-"+this.conversationId);
+        if (Files.exists(path)) {
+            List<String> state = Files.readAllLines(path);
+            state.forEach(line -> this.eventsHandled = Integer.valueOf(line));
+        }
+
+        super.preStart();
+    }
+
+    @Override
     public void onReceive(Object message) throws Throwable {
         if (message instanceof SetupConversation) {
             SetupConversation setupInfo = ((SetupConversation)message);
-            this.conversationId = setupInfo.getConversationId();
+            //this.conversationId = setupInfo.getConversationId();
         } else if (message instanceof Event) {
             handleEvent((Event) message);
         } else if (message == ConversationMessages.GetEventsHandled) {
@@ -54,8 +73,14 @@ public class Conversation extends UntypedActor {
     }
 
     private void handleMigration() {
-        // TODO(lpedrosa): store state into a file
-        // sending normal PoisonPill for now
-        getSelf().tell(PoisonPill.getInstance(), ActorRef.noSender());
+        Path path = Paths.get("./conversation-mem-"+this.conversationId);
+        try {
+            Files.deleteIfExists(path);
+            Files.write(path, String.valueOf(this.eventsHandled).getBytes(), StandardOpenOption.CREATE);
+        } catch (IOException ex) {
+            log.error("Failed to persist state [cid:{}]", this.conversationId);
+        }
+
+        getContext().stop(getSelf());
     }
 }
