@@ -7,6 +7,8 @@ import akka.cluster.sharding.ClusterShardingSettings;
 import akka.cluster.sharding.ShardCoordinator.LeastShardAllocationStrategy;
 
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import javax.ws.rs.core.UriBuilder;
 
@@ -49,16 +51,28 @@ public class ExampleServer {
                                                                    strategy,
                                                                    MigrationMessage.Migrate);
 
-        final ActorRef shutdownActor = system.actorOf(GracefulShutdownInitiator.props(clusterSharder, 10000), "shutdownActor");
 
-        final ResourceConfig resourceConfig = setUpResources(clusterSharder, shutdownActor);
+        final ResourceConfig resourceConfig = setUpResources(clusterSharder);
+
+        final ActorRef shutdownActor =
+                system.actorOf(GracefulShutdownInitiator.props(clusterSharder, 10000), "shutdownActor");
+        final ServerSupplier serverSupplier = new ServerSupplier();
+        ShutdownResource shutdownResource = new ShutdownResource(shutdownActor, serverSupplier);
+        resourceConfig.register(shutdownResource);
 
         final Server server = createServer(config, resourceConfig);
+
+        serverSupplier.setServer(server);
+
+        server.start();
         server.join();
+
+        TimeUnit.SECONDS.sleep(10);
+
         server.destroy();
     }
 
-    private static ResourceConfig setUpResources(ActorRef clusterSharder, ActorRef shutdownActor) {
+    private static ResourceConfig setUpResources(ActorRef clusterSharder) {
         ResourceConfig resourceConfig = new ResourceConfig();
 
         HelloWorld helloResource = new HelloWorld();
@@ -66,9 +80,6 @@ public class ExampleServer {
 
         ConversationResource conversationResource = new ConversationResource(clusterSharder);
         resourceConfig.register(conversationResource);
-
-        ShutdownResource shutdownResource = new ShutdownResource(shutdownActor);
-        resourceConfig.register(shutdownResource);
 
         return resourceConfig;
     }
@@ -79,7 +90,20 @@ public class ExampleServer {
 
         URI baseURI = UriBuilder.fromUri("http://" + host).port(port).build();
 
-        return JettyHttpContainerFactory.createServer(baseURI, resourceConfig, true);
+        return JettyHttpContainerFactory.createServer(baseURI, resourceConfig, false);
+    }
+
+    static class ServerSupplier implements Supplier<Server> {
+        private Server server;
+
+        @Override
+        public Server get() {
+            return server;
+        }
+
+        public void setServer(Server server) {
+            this.server = server;
+        }
     }
 
 }
