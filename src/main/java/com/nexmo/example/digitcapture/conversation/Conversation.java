@@ -16,18 +16,25 @@ import com.nexmo.example.digitcapture.conversation.message.ConversationMessages;
 import com.nexmo.example.digitcapture.conversation.message.Event;
 import com.nexmo.example.digitcapture.conversation.message.EventsHandled;
 import com.nexmo.example.digitcapture.conversation.message.SetupConversation;
+import com.nexmo.example.digitcapture.formatter.LoggerFormatter;
 import com.nexmo.example.digitcapture.migrate.MigrationMessage;
 
 public class Conversation extends UntypedActor {
 
     private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 
-    public static Props props() {
-        return Props.create(Conversation.class, Conversation::new);
+    private final LoggerFormatter formatter;
+
+    public static Props props(LoggerFormatter formatter) {
+        return Props.create(Conversation.class, () -> new Conversation(formatter));
     }
 
-    private int eventsHandled = 0;
+    public Conversation(LoggerFormatter formatter) {
+        this.formatter = formatter;
+        this.eventsHandled = 0;
+    }
 
+    private int eventsHandled;
     private String conversationId;
 
     @Override
@@ -68,7 +75,7 @@ public class Conversation extends UntypedActor {
         if (this.conversationId == null) {
             this.conversationId = event.getConversationId();
         }
-        log.info("Handling event: {}", event);
+        log.info(formatter.format("Handling event: {}" + event));
         this.eventsHandled++;
     }
 

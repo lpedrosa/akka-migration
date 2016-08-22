@@ -25,6 +25,8 @@ import com.nexmo.example.digitcapture.api.HelloWorld;
 import com.nexmo.example.digitcapture.api.ShutdownResource;
 import com.nexmo.example.digitcapture.conversation.Conversation;
 import com.nexmo.example.digitcapture.conversation.ConversationMessageExtractor;
+import com.nexmo.example.digitcapture.formatter.AppInfoLoggerFormatter;
+import com.nexmo.example.digitcapture.formatter.LoggerFormatter;
 import com.nexmo.example.digitcapture.migrate.MigrationMessage;
 import com.nexmo.example.digitcapture.shutdown.GracefulShutdownInitiator;
 
@@ -43,13 +45,19 @@ public class ExampleServer {
                 settings.tuningParameters().leastShardAllocationRebalanceThreshold(),
                 settings.tuningParameters().leastShardAllocationMaxSimultaneousRebalance());
 
+        final String clusterHost = config.getString("application.clustering.host");
+        final String clusterPort = config.getString("application.clustering.port");
+        final LoggerFormatter formatter = new AppInfoLoggerFormatter(clusterHost,
+                                                                     clusterPort,
+                                                                     applicationName);
+
         final ActorRef clusterSharder = ClusterSharding.get(system)
-                                                           .start("digit",
-                                                                   Conversation.props(),
-                                                                   settings,
-                                                                   new ConversationMessageExtractor(),
-                                                                   strategy,
-                                                                   MigrationMessage.Migrate);
+                                                       .start("digit",
+                                                              Conversation.props(formatter),
+                                                              settings,
+                                                              new ConversationMessageExtractor(),
+                                                              strategy,
+                                                              MigrationMessage.Migrate);
 
 
         final ResourceConfig resourceConfig = setUpResources(clusterSharder);
