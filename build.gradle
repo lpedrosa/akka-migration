@@ -9,6 +9,9 @@ targetCompatibility = 1.8
 
 repositories {
     jcenter()
+    maven {
+        url 'https://dl.bintray.com/productfoundry/maven'
+    }
 }
 
 ext {
@@ -31,8 +34,9 @@ dependencies {
     compile "com.typesafe.akka:akka-cluster-sharding_2.11:$akkaVersion"
     compile "com.typesafe.akka:akka-slf4j_2.11:$akkaVersion"
     compile "com.typesafe.akka:akka-persistence_2.11:$akkaVersion"
-    compile 'org.iq80.leveldb:leveldb:0.7'
-    compile 'org.fusesource.leveldbjni:leveldbjni-all:1.8'
+    compile 'com.productfoundry:akka-persistence-couchbase_2.11:0.4.1'
+    //compile 'org.iq80.leveldb:leveldb:0.7'
+    //compile 'org.fusesource.leveldbjni:leveldbjni-all:1.8'
 
     testCompile 'junit:junit:4.12'
     testCompile "com.typesafe.akka:akka-testkit_2.11:$akkaVersion"
